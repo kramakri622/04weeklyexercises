@@ -289,15 +289,14 @@ bbox = c(left = -77.3039, bottom = 38.7332, right = -76.7251, top = 39.0539),
     maptype = "terrain",
     zoom = 11)
 trips_map <- Trips %>%
-  left_join(Stations,
-            by = c("sstation" = "name")) %>%
+  left_join(Stations, by = c("sstation" = "name")) %>%
   group_by(lat,long) %>%
-  summarize(departures = n()) %>%
+  summarize(departures = n())
   
   ggmap(DC_map) +
   geom_point(data = trips_map,
-             aes(x = lat, y = long),
-             size = 0.5) +
+    aes(x = lat, y = long),
+    size = 0.5) +
   theme_map()
 ```
   
@@ -325,16 +324,17 @@ The following exercises will use the COVID-19 data from the NYT.
 states_map <- map_data("state")
 
 covid19 %>%
-  mutate(state = str_to_lower(state)) %<%
-  group_by(state) %>%
+  mutate(state = str_to_lower(state)) %>%
+  group_by(state)%>%
   summarize(cases = max(cases)) %>%
   ggplot() +
   geom_map(map = states_map,
-          aes(map_id = state, fill = cases)) +
+          aes(map_id = state,
+              fill = cases)) +
   expand_limits(x = states_map$long, y = states_map$lat) +
   theme_map()
 ```
-  
+  This map just shows each state and the number of cases they have, but it is not very detailed.
   
   12. Now add the population of each state to the dataset and color the states by most recent cumulative cases/10,000 people. See the code for doing this with the Starbucks data. You will need to make some modifications. 
   
@@ -365,7 +365,28 @@ covid_10000 %>%
   13. **CHALLENGE** Choose 4 dates spread over the time period of the data and create the same map as in exercise 12 for each of the dates. Display the four graphs together using faceting. What do you notice?
   
 ```{r}
+covid_10000 <-
+  covid19 %>%
+  group_by(state) %>%
+  summarize(covid_sum = max(cases)) %>%
+  mutate(states = str_to_lower(state)) %>%
+  select(date = "2020-01-21", "2020-03-27", "2020-04-15", "2020-05-01") %>%
+  left_join(census_pop_est_2018, by = c("states" = "state")) %>%
+  mutate(cases_per10 = covid_sum/est_pop_2018*10000)
 
+states_map <- map_data("state")
+
+covid_10000 %>%
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = states,
+               fill = covid_sum)) +
+  facet_wrap(vars(date)) +
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  scale_fill_viridis_c(option = "inferno") +
+  labs(title = "Most recent cumulative COVID-19 cases per state",
+       fill = "") +
+  theme_map()
 ```
   
   
@@ -376,16 +397,26 @@ These exercises use the datasets `MplsStops` and `MplsDemo` from the `carData` l
   14. Use the `MplsStops` dataset to find out how many stops there were for each neighborhood and the proportion of stops that were for a suspicious vehicle or person. Sort the results from most to least number of stops. Save this as a dataset called `mpls_suspicious` and display the table.  
   
 ```{r}
-MplsStops %>%
-  group_by(stops, neighborhood) %>%
-  
+mpls_suspicious <-MplsStops %>%
+  group_by(neighborhood) %>%
+  mutate(prop_sus = problem) 
 ```
   
   
   15. Use a `leaflet` map and the `MplsStops` dataset to display each of the stops on a map as a small point. Color the points differently depending on whether they were for suspicious vehicle/person or a traffic stop (the `problem` variable). HINTS: use `addCircleMarkers`, set `stroke = FAlSE`, use `colorFactor()` to create a palette.  
   
 ```{r}
-
+leaflet(data = MplsStops) %>%
+  addProviderTiles(providers$Stamen.Watercolor) %>% 
+  addCircles(lng = ~long, 
+             lat = ~lat, 
+             label = ~problem, 
+             weight = 10, 
+             opacity = 1, 
+             color = col2hex("darkblue")) %>%
+addCircleMarkers(color = "blue", radius = 0.5, stroke = FALSE) %>%
+colorFactor(palette = c("blue", "green"),
+            levels = c("suspicious", "traffic"))
 ```
   
   
@@ -394,7 +425,7 @@ MplsStops %>%
 ```{r}
 mpls_nbhd <- st_read("Minneapolis_Neighborhoods/Minneapolis_Neighborhoods.shp", quiet = TRUE)
 
-mpls_all <- mpls_nhbd %>%
+mpls_all <- mpls_nbhd %>%
   mutate(neighborhood = BDNAME) %>%
   left_join(mpls_suspicious,
             MplsDemo,
@@ -404,14 +435,27 @@ mpls_all <- mpls_nhbd %>%
   17. Use `leaflet` to create a map from the `mpls_all` data  that colors the neighborhoods by `prop_suspicious`. Display the neighborhood name as you scroll over it. Describe what you observe in the map.
   
 ```{r}
+pal <- colorNumeric(palette = "viridis", domain = mpls_all$prop_sus)
 
+leaflet(mpls_all) %>%
+  addProviderTiles(providers$CartoDB.DarkMatter) %>%
+  addPolygons(label = ~neighborhood,
+              fillColor = ~pal(prop_sus),
+              color = ~pal(prop_sus),
+              opacity = 5,
+              fillOpacity = 0.8) %>%
+addLegend(pal = pal, values = ~prop_sus)
 ```
   
   
   18. Use `leaflet` to create a map of your own choosing. Come up with a question you want to try to answer and use the map to help answer that question. Describe what your map shows. 
   
 ```{r}
-
+leaflet(data = mpls_suspicious) %>%
+  addTiles() %>%
+  addMarkers(lng = ~93, 
+             lat = ~44, 
+             label = ~neighborhood)
 ```
   
 ## GitHub link
