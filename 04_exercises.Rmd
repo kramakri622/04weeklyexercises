@@ -194,17 +194,20 @@ read_csv reads in the data, separate() turns a single column (state) into multip
 states_map <- map_data("state")
 
 starbucks_with_2018_pop_est %>%
+
   ggplot() +
   geom_map(map = states_map,
            aes(map_id = state_name,
-               fill = starbucks_per_10000,
-               opacity = 0.7)) +
-  geom_point(data = Starbucks %>% filter(Country == "US", !`State/Province` %in% c("AK", "HI"))) +
+               fill = starbucks_per_10000)) +
+  geom_point(data = Starbucks %>% filter(Country == "US", !`State/Province` %in% c("AK", "HI")),
           aes(x = Longitude,
-              y = Latitude,
+              y = Latitude),
               size = 0.3, 
               color = "orange") +
-  expand_limits(x = states_map$long, y = states_map$lat) + 
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  labs(title = "Number of Starbucks per 10000 people",
+       caption = "Author : Kamini Ramakrishna",
+       fill = "") +
   theme_map()
   
 ```
@@ -281,13 +284,35 @@ Stations<-read_csv("http://www.macalester.edu/~dshuman1/data/112/DC-Stations.csv
   9. Use the latitude and longitude variables in `Stations` to make a visualization of the total number of departures from each station in the `Trips` data. Use either color or size to show the variation in number of departures. This time, plot the points on top of a map. Use any of the mapping tools you'd like.
   
 ```{r}
-
+  DC_map <- get_stamenmap(
+bbox = c(left = -77.3039, bottom = 38.7332, right = -76.7251, top = 39.0539),
+    maptype = "terrain",
+    zoom = 11)
+trips_map <- Trips %>%
+  left_join(Stations,
+            by = c("sstation" = "name")) %>%
+  group_by(lat,long) %>%
+  summarize(departures = n()) %>%
+  
+  ggmap(DC_map) +
+  geom_point(data = trips_map,
+             aes(x = lat, y = long),
+             size = 0.5) +
+  theme_map()
 ```
   
   10. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? Also plot this on top of a map. I think it will be more clear what the patterns are.
   
 ```{r}
-
+Trips %>%
+mutate(name = sstation) %>%
+left_join(Stations, 
+          by=c("name")) %>%
+mutate(cas_true = client == "Casual") %>%
+group_by(lat,long) %>%
+  summarize(pct_cas = sum(cas_true)/n()) %>%
+ggplot(aes(x = long, y = lat, color = pct_cas)) +
+  geom_point()
 ```
   
 ### COVID-19 data
@@ -300,13 +325,12 @@ The following exercises will use the COVID-19 data from the NYT.
 states_map <- map_data("state")
 
 covid19 %>%
+  mutate(state = str_to_lower(state)) %<%
   group_by(state) %>%
-  summarize(most_recent_case = max(cases)) %>%
-  mutate(state = str_to_lower(state)) 
-  
+  summarize(cases = max(cases)) %>%
   ggplot() +
   geom_map(map = states_map,
-          aes(map_id = state, fill = most_recent_case)) +
+          aes(map_id = state, fill = cases)) +
   expand_limits(x = states_map$long, y = states_map$lat) +
   theme_map()
 ```
@@ -321,7 +345,7 @@ covid_10000 <-
   summarize(covid_sum = max(cases)) %>%
   mutate(states = str_to_lower(state)) %>%
   left_join(census_pop_est_2018, by = c("states" = "state")) %>%
-  mutate(cases_per10 = covid_sum/est_pop_2018)*10000)
+  mutate(cases_per10 = covid_sum/est_pop_2018*10000)
 
 states_map <- map_data("state")
 
@@ -340,28 +364,60 @@ covid_10000 %>%
   
   13. **CHALLENGE** Choose 4 dates spread over the time period of the data and create the same map as in exercise 12 for each of the dates. Display the four graphs together using faceting. What do you notice?
   
+```{r}
+
+```
+  
+  
 ## Minneapolis police stops
 
 These exercises use the datasets `MplsStops` and `MplsDemo` from the `carData` library. Search for them in Help to find out more information.
 
   14. Use the `MplsStops` dataset to find out how many stops there were for each neighborhood and the proportion of stops that were for a suspicious vehicle or person. Sort the results from most to least number of stops. Save this as a dataset called `mpls_suspicious` and display the table.  
   
+```{r}
+MplsStops %>%
+  group_by(stops, neighborhood) %>%
+  
+```
+  
+  
   15. Use a `leaflet` map and the `MplsStops` dataset to display each of the stops on a map as a small point. Color the points differently depending on whether they were for suspicious vehicle/person or a traffic stop (the `problem` variable). HINTS: use `addCircleMarkers`, set `stroke = FAlSE`, use `colorFactor()` to create a palette.  
+  
+```{r}
+
+```
+  
   
   16. Save the folder from moodle called Minneapolis_Neighborhoods into your project/repository folder for this assignment. Make sure the folder is called Minneapolis_Neighborhoods. Use the code below to read in the data and make sure to **delete the `eval=FALSE`**. Although it looks like it only links to the .sph file, you need the entire folder of files to create the `mpls_nbhd` data set. These data contain information about the geometries of the Minneapolis neighborhoods. Using the `mpls_nbhd` dataset as the base file, join the `mpls_suspicious` and `MplsDemo` datasets to it by neighborhood (careful, they are named different things in the different files). Call this new dataset `mpls_all`.
 
-```{r, eval=FALSE}
+```{r}
 mpls_nbhd <- st_read("Minneapolis_Neighborhoods/Minneapolis_Neighborhoods.shp", quiet = TRUE)
+
+mpls_all <- mpls_nhbd %>%
+  mutate(neighborhood = BDNAME) %>%
+  left_join(mpls_suspicious,
+            MplsDemo,
+            by = c("neighborhood"))
 ```
 
   17. Use `leaflet` to create a map from the `mpls_all` data  that colors the neighborhoods by `prop_suspicious`. Display the neighborhood name as you scroll over it. Describe what you observe in the map.
   
+```{r}
+
+```
+  
+  
   18. Use `leaflet` to create a map of your own choosing. Come up with a question you want to try to answer and use the map to help answer that question. Describe what your map shows. 
   
+```{r}
+
+```
   
 ## GitHub link
 
   19. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 04_exercises.Rmd, provide a link to the 04_exercises.md file, which is the one that will be most readable on GitHub.
+
 
 
 **DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
