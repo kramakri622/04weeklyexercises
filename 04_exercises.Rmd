@@ -186,24 +186,24 @@ starbucks_with_2018_pop_est <-
 
   6. **`dplyr` review**: Look through the code above and describe what each line of code does.
 
+read_csv reads in the data, separate() turns a single column (state) into multiple columns, select() chooses which variables to keep, mutate() adds a new variable, str_to_lower() makes it lowercase, left_join joins two data sets (starbucks_us_by_state and census_pop_est_2018), and the second mutate() creates the new variable starbucks_per_10000
+
   7. Create a choropleth map that shows the number of Starbucks per 10,000 people on a map of the US. Use a new fill color, add points for all Starbucks in the US (except Hawaii and Alaska), add an informative title for the plot, and include a caption that says who created the plot (you!). Make a conclusion about what you observe.
 
 ```{r}
 states_map <- map_data("state")
 
 starbucks_with_2018_pop_est %>%
-  # map that colors state by number of Starbucks
   ggplot() +
   geom_map(map = states_map,
            aes(map_id = state_name,
                fill = starbucks_per_10000,
-               opacity = 0.7) +
-  geom_point(data = Starbucks %>% filter(Country == "US", !`State/Province` %in% c("AK", "HI"))),
+               opacity = 0.7)) +
+  geom_point(data = Starbucks %>% filter(Country == "US", !`State/Province` %in% c("AK", "HI"))) +
           aes(x = Longitude,
-              y = Latitude),
+              y = Latitude,
               size = 0.3, 
               color = "orange") +
-  #This assures the map looks decently nice:
   expand_limits(x = states_map$long, y = states_map$lat) + 
   theme_map()
   
@@ -216,9 +216,43 @@ starbucks_with_2018_pop_est %>%
 
   * Create a data set using the `tibble()` function that has 10-15 rows of your favorite places. The columns will be the name of the location, the latitude, the longitude, and a column that indicates if it is in your top 3 favorite locations or not. For an example of how to use `tibble()`, look at the `favorite_stp_by_lisa` I created in the data R code chunk at the beginning.  
 
+```{r}
+favorite_stp_by_kamini <- tibble(
+  place = c("Breadsmith", "Saint Paul Cheese Shop", "Jamba Juice", 
+            "Caribou Coffee", "Sencha Tea Bar", "CVS",
+            "Janet Wallace Fine Arts Building", "DeWitt Wallace Library", "Dunkin' Donuts", "A Johnson & Sons Florists"),
+  long = c(-93.16534, -93.16511, -93.16527, -93.16508, -93.17058, -93.17629, -93.16998, -93.16813, -93.16727, -93.17402),
+  lat = c(44.93952, 44.93952, 44.93952, 44.93879, 44.93926, 44.94047, 44.93729, 44.93836, 44.9456, 44.93985))
+```
+
+
   * Create a `leaflet` map that uses circles to indicate your favorite places. Label them with the name of the place. Choose the base map you like best. Color your 3 favorite places differently than the ones that are not in your top 3 (HINT: `colorFactor()`). Add a legend that explains what the colors mean.  
   
+```{r}
+leaflet(data = favorite_stp_by_kamini) %>%
+  addTiles() %>%
+  addCircles(lng = ~long,
+             lat = ~lat,
+             radius = 1,
+             label = ~place)
+             
+```
+  
+  
   * Connect all your locations together with a line in a meaningful way (you may need to order them differently in the original data).  
+  
+```{r}
+leaflet(data = favorite_stp_by_kamini) %>%
+  addTiles() %>%
+  addCircles(lng = ~long,
+             lat = ~lat,
+             radius = 1,
+             label = ~place) %>%
+addPolylines(lng = ~long, 
+               lat = ~lat, 
+               color = col2hex("darkred"))
+```
+  
   
   * If there are other variables you want to add that could enhance your plot, do that now.  
   
@@ -281,7 +315,26 @@ covid19 %>%
   12. Now add the population of each state to the dataset and color the states by most recent cumulative cases/10,000 people. See the code for doing this with the Starbucks data. You will need to make some modifications. 
   
 ```{r}
+covid_10000 <-
+  covid19 %>%
+  group_by(state) %>%
+  summarize(covid_sum = max(cases)) %>%
+  mutate(states = str_to_lower(state)) %>%
+  left_join(census_pop_est_2018, by = c("states" = "state")) %>%
+  mutate(cases_per10 = covid_sum/est_pop_2018)*10000)
 
+states_map <- map_data("state")
+
+covid_10000 %>%
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = states,
+               fill = covid_sum)) +
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  scale_fill_viridis_c(option = "inferno") +
+  labs(title = "Most recent cumulative COVID-19 cases per state",
+       fill = "") +
+  theme_map()
 ```
   
   
