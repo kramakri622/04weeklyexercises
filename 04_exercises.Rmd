@@ -12,7 +12,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
 ```
 
 ```{r libraries}
@@ -370,7 +370,31 @@ covid_10000 <-
   group_by(state) %>%
   summarize(covid_sum = max(cases)) %>%
   mutate(states = str_to_lower(state)) %>%
-  select(date = "2020-01-21", "2020-03-27", "2020-04-15", "2020-05-01") %>%
+  left_join(census_pop_est_2018, by = c("states" = "state")) %>%
+  mutate(cases_per10 = covid_sum/est_pop_2018*10000)
+
+states_map <- map_data("state")
+
+covid_10000 %>%
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = states,
+               fill = covid_sum)) +
+  expand_limits(x = states_map$long, y = states_map$lat) +
+  scale_fill_viridis_c(option = "inferno") +
+  labs(title = "Most recent cumulative COVID-19 cases per state",
+       fill = "") +
+  theme_map()
+```
+ 
+  I tried using this code to facet but I couldn't get it to work so I'm pasting it here so you can see what I wanted to do.
+  
+  covid_10000 <-
+  covid19 %>%
+  group_by(state) %>%
+  summarize(covid_sum = max(cases)) %>%
+  mutate(states = str_to_lower(state)) %>%
+  select(filter(date == "2020-01-21", "2020-04-17", "2020-05-06", "2020-06-17")) %>%
   left_join(census_pop_est_2018, by = c("states" = "state")) %>%
   mutate(cases_per10 = covid_sum/est_pop_2018*10000)
 
@@ -387,8 +411,6 @@ covid_10000 %>%
   labs(title = "Most recent cumulative COVID-19 cases per state",
        fill = "") +
   theme_map()
-```
-  
   
 ## Minneapolis police stops
 
@@ -434,8 +456,9 @@ mpls_all <- mpls_nbhd %>%
 
   17. Use `leaflet` to create a map from the `mpls_all` data  that colors the neighborhoods by `prop_suspicious`. Display the neighborhood name as you scroll over it. Describe what you observe in the map.
   
-```{r}
-pal <- colorNumeric(palette = "viridis", domain = mpls_all$prop_sus)
+  Here's the code I tried to run:
+  
+  pal <- colorNumeric("viridis", domain = mpls_all$prop_sus)
 
 leaflet(mpls_all) %>%
   addProviderTiles(providers$CartoDB.DarkMatter) %>%
@@ -443,25 +466,29 @@ leaflet(mpls_all) %>%
               fillColor = ~pal(prop_sus),
               color = ~pal(prop_sus),
               opacity = 5,
-              fillOpacity = 0.8) %>%
+              fillOpacity = .8) %>%
 addLegend(pal = pal, values = ~prop_sus)
-```
-  
+
+  It kept saying "'range' not meaningful for factors" and could not find the function "pal".
   
   18. Use `leaflet` to create a map of your own choosing. Come up with a question you want to try to answer and use the map to help answer that question. Describe what your map shows. 
   
 ```{r}
-leaflet(data = mpls_suspicious) %>%
+leaflet(data = mpls_all) %>%
   addTiles() %>%
-  addMarkers(lng = ~93, 
-             lat = ~44, 
+  addMarkers(lng = ~8, 
+             lat = ~9, 
              label = ~neighborhood)
 ```
+  
+  I want to show the amount of suspicious vehicles/people in neighborhoods.
+  
+  R Studio kept crashing and freezing when I tried to run this code.
   
 ## GitHub link
 
   19. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 04_exercises.Rmd, provide a link to the 04_exercises.md file, which is the one that will be most readable on GitHub.
 
-
+https://github.com/kramakri622/04weeklyexercises
 
 **DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
